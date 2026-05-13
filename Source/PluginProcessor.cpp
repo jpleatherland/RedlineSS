@@ -1,0 +1,187 @@
+#include "PluginProcessor.h"
+#include "PluginEditor.h"
+
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
+#include <juce_gui_basics/juce_gui_basics.h>
+
+RedlineSSAudioProcessor::RedlineSSAudioProcessor()
+    : AudioProcessor(
+          BusesProperties()
+              .withInput("Input", juce::AudioChannelSet::stereo(), true)
+              .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+      apvts(*this, nullptr, "Parameters", createParameterLayout())
+{
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout RedlineSSAudioProcessor::createParameterLayout()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "inputHighPassHz",
+            "Input High Pass",
+            juce::NormalisableRange<float>(40.0f, 250.0f, 1.0f, 0.5f),
+            90.0f));
+
+    params.push_back(std::make_unique<juce::AudioParameterBool>("dirty", "Dirty", true));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "gain1", "Gain 1", juce::NormalisableRange<float>(0.0f, 10.0f, 0.01f, 0.5f), 2.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "bias1", "Bias 1", juce::NormalisableRange<float>(-0.9f, 0.9f, 0.01f), 0.2f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "interstageHighPassHz",
+            "Interstage High Pass",
+            juce::NormalisableRange<float>(60.0f, 400.0f, 1.0f, 0.5f),
+            140.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "gain2", "Gain 2", juce::NormalisableRange<float>(0.0f, 10.0f, 0.01f, 0.5f), 0.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "interstageHighPassHz2",
+            "Interstage High Pass 2",
+            juce::NormalisableRange<float>(60.0f, 400.0f, 1.0f, 0.5f),
+            140.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "gain3", "Gain 3", juce::NormalisableRange<float>(0.0f, 10.0f, 0.01f, 0.5f), 0.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "bassDb", "Bass", juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "lowerMidDb", "LowerMid", juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "upperMidDb", "UpperMid", juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "trebleDb", "Treble", juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "fizzLowPassHz",
+            "Fizz Low Pass",
+            juce::NormalisableRange<float>(3000.0f, 12000.0f, 1.0f, 0.5f),
+            6500.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "masterLevel",
+            "Master Volume",
+            juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+            0.5f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "resonanceDb", "Resonance", juce::NormalisableRange<float>(0.0f, 6.0f, 0.01f), 0.0f));
+
+    params.push_back(
+        std::make_unique<juce::AudioParameterFloat>(
+            "thresholdDb",
+            "Threshold",
+            juce::NormalisableRange<float>(-80.0f, -30.0f, 0.01f),
+            -50.0f));
+
+    return {params.begin(), params.end()};
+}
+
+void RedlineSSAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+    preamp.prepare(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
+    powerAmp.prepare(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
+    gate.prepare(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
+}
+
+void RedlineSSAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer &)
+{
+    juce::ScopedNoDenormals noDenormals;
+
+    const auto thresholdDb = apvts.getRawParameterValue("thresholdDb")->load();
+
+    gate.processBlock(buffer, thresholdDb);
+
+    const auto inputHighPassHz = apvts.getRawParameterValue("inputHighPassHz")->load();
+
+    const auto dirty = apvts.getRawParameterValue("dirty")->load() > 0.5f;
+
+    const auto gain1 = apvts.getRawParameterValue("gain1")->load();
+
+    const auto bias1 = apvts.getRawParameterValue("bias1")->load();
+
+    const auto interstageHighPassHz = apvts.getRawParameterValue("interstageHighPassHz")->load();
+
+    const auto gain2 = apvts.getRawParameterValue("gain2")->load();
+
+    const auto interstageHighPassHz2 = apvts.getRawParameterValue("interstageHighPassHz2")->load();
+
+    const auto gain3 = apvts.getRawParameterValue("gain3")->load();
+
+    const auto bassDb = apvts.getRawParameterValue("bassDb")->load();
+
+    const auto lowerMidDb = apvts.getRawParameterValue("lowerMidDb")->load();
+
+    const auto upperMidDb = apvts.getRawParameterValue("upperMidDb")->load();
+
+    const auto trebleDb = apvts.getRawParameterValue("trebleDb")->load();
+
+    const auto fizzLowPassHz = apvts.getRawParameterValue("fizzLowPassHz")->load();
+
+    const auto masterLevel = apvts.getRawParameterValue("masterLevel")->load();
+
+    preamp.processBlock(
+        buffer,
+        inputHighPassHz,
+        dirty,
+        gain1,
+        bias1,
+        interstageHighPassHz,
+        gain2,
+        interstageHighPassHz2,
+        gain3,
+        bassDb,
+        lowerMidDb,
+        upperMidDb,
+        trebleDb,
+        fizzLowPassHz,
+        masterLevel);
+
+    const auto resonanceDb = apvts.getRawParameterValue("resonanceDb")->load();
+
+    powerAmp.processBlock(buffer, resonanceDb);
+}
+
+bool RedlineSSAudioProcessor::isBusesLayoutSupported(const BusesLayout &layouts) const
+{
+    return layouts.getMainInputChannelSet() == layouts.getMainOutputChannelSet() &&
+           !layouts.getMainInputChannelSet().isDisabled();
+}
+
+juce::AudioProcessorEditor *RedlineSSAudioProcessor::createEditor()
+{
+    return new RedlineSSAudioProcessorEditor(*this);
+}
+
+void RedlineSSAudioProcessor::getStateInformation(juce::MemoryBlock &) {}
+
+void RedlineSSAudioProcessor::setStateInformation(const void *, int) {}
+
+juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
+{
+    return new RedlineSSAudioProcessor();
+}

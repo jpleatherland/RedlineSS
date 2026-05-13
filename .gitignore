@@ -1,0 +1,130 @@
+# =========================================================
+# JUCE / audio plugin project
+# =========================================================
+
+# Projucer/CMake generated build folders
+Builds/
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# JUCE-generated code from Projucer
+# Usually safe to regenerate from the .jucer file.
+JuceLibraryCode/
+
+# If you use a local JUCE checkout inside the repo, usually don't commit it
+# Prefer submodule, FetchContent, package manager, or documented path.
+JUCE/
+juce/
+
+# =========================================================
+# Plugin build artefacts
+# =========================================================
+
+*.vst
+*.vst3
+*.component
+*.aaxplugin
+*.lv2
+*.clap
+*.app
+*.exe
+*.dll
+*.dylib
+*.so
+
+# Plugin install/output folders
+VST/
+VST3/
+AU/
+AAX/
+CLAP/
+LV2/
+Standalone/
+
+# Common JUCE/CMake output dirs
+bin/
+lib/
+out/
+DerivedData/
+
+# =========================================================
+# Object files / compiled intermediates
+# =========================================================
+
+*.o
+*.obj
+*.a
+*.lib
+*.exp
+*.pdb
+*.idb
+*.ilk
+*.pch
+*.dSYM/
+*.gcda
+*.gcno
+*.gcov
+
+# =========================================================
+# IDE/editor files
+# =========================================================
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+ipch/
+x64/
+x86/
+Win32/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+
+# Xcode
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/xcshareddata/WorkspaceSettings.xcsettings
+
+# JetBrains / CLion
+.idea/
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# =========================================================
+# OS junk
+# =========================================================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================================================
+# Logs / temporary files
+# =========================================================
+
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
