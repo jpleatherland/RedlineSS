@@ -28,6 +28,7 @@ void AmpPreamp::prepare(double sampleRate, int samplesPerBlock, int numChannels)
     gainStage2.prepare(sampleRate);
     gainStage3.prepare(sampleRate);
     toneStack.prepare(sampleRate, samplesPerBlock, numChannels);
+    vintageLeadPreamp.prepare(sampleRate, samplesPerBlock, numChannels);
 }
 
 void AmpPreamp::processBlock(
@@ -74,39 +75,44 @@ void AmpPreamp::processBlock(
     auto oversampledBlock = oversampler.processSamplesUp(block);
     juce::dsp::ProcessContextReplacing<float> oversampledContext(oversampledBlock);
 
-    if (dirty) {
-        // Gain stage 1
-        for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
-            auto *data = oversampledBlock.getChannelPointer(channel);
+    if (dirty)
+        vintageLeadPreamp.processBlock(
+            buffer, gain1 / 10.0f, bassDb, lowerMidDb, trebleDb, masterLevel);
+    return;
 
-            for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
-                data[i] = gainStage1.processSample(data[i], gain1, bias1);
-        }
-
-        // Interstage high-pass 1
-        interstageHighPass.process(oversampledContext);
-        interstageLowPass.process(oversampledContext);
-
-        // Gain stage 2
-        for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
-            auto *data = oversampledBlock.getChannelPointer(channel);
-
-            for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
-                data[i] = gainStage2.processSample(data[i], gain2);
-        }
-
-        // Interstage high-pass 2
-        interstageHighPass2.process(oversampledContext);
-        interstageLowPass2.process(oversampledContext);
-
-        // Gain stage 3
-        for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
-            auto *data = oversampledBlock.getChannelPointer(channel);
-
-            for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
-                data[i] = gainStage3.processSample(data[i], gain3);
-        }
-    }
+    // if (dirty) {
+    //     // Gain stage 1
+    //     for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
+    //         auto *data = oversampledBlock.getChannelPointer(channel);
+    //
+    //         for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
+    //             data[i] = gainStage1.processSample(data[i], gain1, bias1);
+    //     }
+    //
+    //     // Interstage high-pass 1
+    //     interstageHighPass.process(oversampledContext);
+    //     interstageLowPass.process(oversampledContext);
+    //
+    //     // Gain stage 2
+    //     for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
+    //         auto *data = oversampledBlock.getChannelPointer(channel);
+    //
+    //         for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
+    //             data[i] = gainStage2.processSample(data[i], gain2);
+    //     }
+    //
+    //     // Interstage high-pass 2
+    //     interstageHighPass2.process(oversampledContext);
+    //     interstageLowPass2.process(oversampledContext);
+    //
+    //     // Gain stage 3
+    //     for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
+    //         auto *data = oversampledBlock.getChannelPointer(channel);
+    //
+    //         for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
+    //             data[i] = gainStage3.processSample(data[i], gain3);
+    //     }
+    // }
 
     oversampler.processSamplesDown(block);
 
