@@ -38,6 +38,8 @@ target_sources(RedlineSS
         Source/Utility/NoiseGate.cpp
         Source/AmpPreamp/VintageLeadPreamp.h
         Source/AmpPreamp/VintageLeadPreamp.cpp
+        Source/AmpPreamp/ModernLeadPreamp.h
+        Source/AmpPreamp/ModernLeadPreamp.cpp
 )
 
 target_compile_definitions(RedlineSS

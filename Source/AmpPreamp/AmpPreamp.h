@@ -5,6 +5,7 @@
 #include "GainStage1.h"
 #include "GainStage2.h"
 #include "GainStage3.h"
+#include "ModernLeadPreamp.h"
 #include "ToneStack.h"
 #include "VintageLeadPreamp.h"
 
@@ -36,6 +37,7 @@ class AmpPreamp {
     GainStage3 gainStage3;
     ToneStack toneStack;
     VintageLeadPreamp vintageLeadPreamp;
+    ModernLeadPreamp modernLeadPreamp;
 
     juce::dsp::
         ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>

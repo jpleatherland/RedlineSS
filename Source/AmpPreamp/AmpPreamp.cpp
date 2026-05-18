@@ -29,6 +29,7 @@ void AmpPreamp::prepare(double sampleRate, int samplesPerBlock, int numChannels)
     gainStage3.prepare(sampleRate);
     toneStack.prepare(sampleRate, samplesPerBlock, numChannels);
     vintageLeadPreamp.prepare(sampleRate, samplesPerBlock, numChannels);
+    modernLeadPreamp.prepare(sampleRate, samplesPerBlock, numChannels);
 }
 
 void AmpPreamp::processBlock(
@@ -38,8 +39,8 @@ void AmpPreamp::processBlock(
     float gain1,
     float bias1,
     float interstageHighPassHz,
-    float gain2,
     float interstageHighPassHz2,
+    float gain2,
     float gain3,
     float bassDb,
     float lowerMidDb,
@@ -48,6 +49,25 @@ void AmpPreamp::processBlock(
     float fizzLowPassHz,
     float masterLevel)
 {
+    // Modern lead has its own input coupling, oversampling, nonlinear path,
+    // voicing filters and final low-pass. Do not pre-filter it here, otherwise
+    // the low/lower-mid body is removed before the clamp has anything to bite on.
+    if (dirty) {
+        juce::ignoreUnused(
+            inputHighPassHz,
+            bias1,
+            interstageHighPassHz,
+            interstageHighPassHz2,
+            gain2,
+            gain3,
+            upperMidDb,
+            fizzLowPassHz);
+
+        modernLeadPreamp.processBlock(
+            buffer, gain1 / 10.0f, bassDb, lowerMidDb, trebleDb, masterLevel);
+        return;
+    }
+
     *inputHighPass.state =
         *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, inputHighPassHz);
 
@@ -69,59 +89,48 @@ void AmpPreamp::processBlock(
     juce::dsp::AudioBlock<float> block(buffer);
     juce::dsp::ProcessContextReplacing<float> context(block);
 
-    // Input high-pass: tightens low end before distortion.
+    // Legacy/non-modern path. Left intact, apart from moving the Modern return above it.
     inputHighPass.process(context);
 
     auto oversampledBlock = oversampler.processSamplesUp(block);
     juce::dsp::ProcessContextReplacing<float> oversampledContext(oversampledBlock);
 
-    if (dirty)
-        vintageLeadPreamp.processBlock(
-            buffer, gain1 / 10.0f, bassDb, lowerMidDb, trebleDb, masterLevel);
-    return;
+    // If you want the Vintage lead macro-model here instead of the old generic chain,
+    // replace this legacy block with vintageLeadPreamp.processBlock(...).
 
-    // if (dirty) {
-    //     // Gain stage 1
-    //     for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
-    //         auto *data = oversampledBlock.getChannelPointer(channel);
-    //
-    //         for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
-    //             data[i] = gainStage1.processSample(data[i], gain1, bias1);
-    //     }
-    //
-    //     // Interstage high-pass 1
-    //     interstageHighPass.process(oversampledContext);
-    //     interstageLowPass.process(oversampledContext);
-    //
-    //     // Gain stage 2
-    //     for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
-    //         auto *data = oversampledBlock.getChannelPointer(channel);
-    //
-    //         for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
-    //             data[i] = gainStage2.processSample(data[i], gain2);
-    //     }
-    //
-    //     // Interstage high-pass 2
-    //     interstageHighPass2.process(oversampledContext);
-    //     interstageLowPass2.process(oversampledContext);
-    //
-    //     // Gain stage 3
-    //     for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
-    //         auto *data = oversampledBlock.getChannelPointer(channel);
-    //
-    //         for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
-    //             data[i] = gainStage3.processSample(data[i], gain3);
-    //     }
-    // }
+    for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
+        auto *data = oversampledBlock.getChannelPointer(channel);
+
+        for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
+            data[i] = gainStage1.processSample(data[i], gain1, bias1);
+    }
+
+    interstageHighPass.process(oversampledContext);
+    interstageLowPass.process(oversampledContext);
+
+    for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
+        auto *data = oversampledBlock.getChannelPointer(channel);
+
+        for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
+            data[i] = gainStage2.processSample(data[i], gain2);
+    }
+
+    interstageHighPass2.process(oversampledContext);
+    interstageLowPass2.process(oversampledContext);
+
+    for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
+        auto *data = oversampledBlock.getChannelPointer(channel);
+
+        for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
+            data[i] = gainStage3.processSample(data[i], gain3);
+    }
 
     oversampler.processSamplesDown(block);
 
-    // Tone stack
-    toneStack.processBlock(buffer, bassDb, lowerMidDb, upperMidDb, trebleDb);
+    // Tone stack is still disabled here, matching your current implementation.
+    // toneStack.processBlock(buffer, bassDb, lowerMidDb, upperMidDb, trebleDb);
 
-    // Post-distortion low-pass: removes fizz generated by clipping.
     fizzLowPass.process(context);
 
-    // Master level: how hard to hit the power amp.
     buffer.applyGain(masterLevel);
 }
