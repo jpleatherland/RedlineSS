@@ -1,11 +1,11 @@
 #pragma once
 
+#include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_core/juce_core.h>
 #include <juce_dsp/juce_dsp.h>
 
-#include "AmpPowerAmp/AmpPowerAmp.h"
 #include "AmpPreamp/AmpPreamp.h"
-#include "Utility/NoiseGate.h"
 
 class RedlineSSAudioProcessor final : public juce::AudioProcessor {
   public:
@@ -13,66 +13,48 @@ class RedlineSSAudioProcessor final : public juce::AudioProcessor {
     ~RedlineSSAudioProcessor() override = default;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-    void releaseResources() override {}
+    void releaseResources() override;
 
     bool isBusesLayoutSupported(const BusesLayout &layouts) const override;
 
     void processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer &midiMessages) override;
 
     juce::AudioProcessorEditor *createEditor() override;
-    bool hasEditor() const override
-    {
-        return true;
-    }
+    bool hasEditor() const override;
 
-    const juce::String getName() const override
-    {
-        return "My First Amp Sim";
-    }
+    const juce::String getName() const override;
 
-    bool acceptsMidi() const override
-    {
-        return false;
-    }
-    bool producesMidi() const override
-    {
-        return false;
-    }
-    bool isMidiEffect() const override
-    {
-        return false;
-    }
-    double getTailLengthSeconds() const override
-    {
-        return 0.0;
-    }
+    bool acceptsMidi() const override;
+    bool producesMidi() const override;
+    bool isMidiEffect() const override;
+    double getTailLengthSeconds() const override;
 
-    int getNumPrograms() override
-    {
-        return 1;
-    }
-    int getCurrentProgram() override
-    {
-        return 0;
-    }
-    void setCurrentProgram(int) override {}
-    const juce::String getProgramName(int) override
-    {
-        return {};
-    }
-    void changeProgramName(int, const juce::String &) override {}
+    int getNumPrograms() override;
+    int getCurrentProgram() override;
+    void setCurrentProgram(int index) override;
+    const juce::String getProgramName(int index) override;
+    void changeProgramName(int index, const juce::String &newName) override;
 
     void getStateInformation(juce::MemoryBlock &destData) override;
     void setStateInformation(const void *data, int sizeInBytes) override;
 
-    juce::AudioProcessorValueTreeState apvts;
+    juce::AudioProcessorValueTreeState &getApvts();
+    const juce::AudioProcessorValueTreeState &getApvts() const;
+
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
+
+    double currentSampleRate = 44100.0;
+    int currentBlockSize = 512;
+    int currentNumChannels = 2;
+
+    juce::AudioBuffer<float> oversampledTempBuffer;
 
   private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    AmpPreamp preamp;
-    AmpPowerAmp powerAmp;
-    NoiseGate gate;
+    juce::AudioProcessorValueTreeState apvts;
+
+    AmpPreamp ampPreamp;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RedlineSSAudioProcessor)
 };

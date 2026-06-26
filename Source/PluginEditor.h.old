@@ -1,0 +1,88 @@
+#pragma once
+
+#include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_gui_basics/juce_gui_basics.h>
+
+#include "PluginProcessor.h"
+
+class SwitchLookAndFeel : public juce::LookAndFeel_V4 {
+  public:
+    void drawToggleButton(
+        juce::Graphics &g,
+        juce::ToggleButton &button,
+        bool shouldDrawButtonAsHighlighted,
+        bool shouldDrawButtonAsDown) override;
+};
+
+class RedlineSSAudioProcessorEditor final : public juce::AudioProcessorEditor {
+  public:
+    explicit RedlineSSAudioProcessorEditor(RedlineSSAudioProcessor &);
+    ~RedlineSSAudioProcessorEditor() override;
+
+    void paint(juce::Graphics &) override;
+    void resized() override;
+
+  private:
+    RedlineSSAudioProcessor &processor;
+    SwitchLookAndFeel switchLookAndFeel;
+
+    juce::Slider inputHighPassSlider;
+    juce::ToggleButton highGainInputToggle;
+    juce::ToggleButton dirtyToggle;
+    juce::Slider gain1Slider;
+    juce::Slider bias1Slider;
+    juce::Slider interstageHighPassSlider;
+    juce::Slider gain2Slider;
+    juce::Slider interstageHighPassSlider2;
+    juce::Slider gain3Slider;
+    juce::Slider bassSlider;
+    juce::Slider lowerMidSlider;
+    juce::Slider upperMidSlider;
+    juce::Slider trebleSlider;
+    juce::Slider fizzLowPassSlider;
+    juce::Slider masterLevelSlider;
+    juce::Slider thresholdSlider;
+
+    juce::Slider resonanceSlider;
+
+    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+
+    std::unique_ptr<SliderAttachment> inputHighPassAttachment;
+    std::unique_ptr<ButtonAttachment> highGainInputAttachment;
+    std::unique_ptr<ButtonAttachment> dirtyAttachment;
+    std::unique_ptr<SliderAttachment> gain1Attachment;
+    std::unique_ptr<SliderAttachment> bias1Attachment;
+    std::unique_ptr<SliderAttachment> interstageHighPassAttachment;
+    std::unique_ptr<SliderAttachment> gain2Attachment;
+    std::unique_ptr<SliderAttachment> interstageHighPassAttachment2;
+    std::unique_ptr<SliderAttachment> gain3Attachment;
+    std::unique_ptr<SliderAttachment> bassAttachment;
+    std::unique_ptr<SliderAttachment> lowerMidAttachment;
+    std::unique_ptr<SliderAttachment> upperMidAttachment;
+    std::unique_ptr<SliderAttachment> trebleAttachment;
+    std::unique_ptr<SliderAttachment> fizzLowPassAttachment;
+    std::unique_ptr<SliderAttachment> masterLevelAttachment;
+    std::unique_ptr<SliderAttachment> thresholdAttachment;
+
+    std::unique_ptr<SliderAttachment> resonanceAttachment;
+
+    juce::Label tightLabel;
+    juce::Label gain1Label;
+    juce::Label bias1Label;
+    juce::Label cutLabel;
+    juce::Label gain2Label;
+    juce::Label cut2Label;
+    juce::Label gain3Label;
+    juce::Label bassLabel;
+    juce::Label lowerMidLabel;
+    juce::Label upperMidLabel;
+    juce::Label trebleLabel;
+    juce::Label fizzLabel;
+    juce::Label masterLevelLabel;
+    juce::Label thresholdLabel;
+
+    juce::Label resonanceLabel;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RedlineSSAudioProcessorEditor)
+};

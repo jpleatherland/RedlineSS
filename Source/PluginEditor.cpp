@@ -1,168 +1,92 @@
 #include "PluginEditor.h"
-#include "juce_gui_basics/juce_gui_basics.h"
-#include <memory>
 
-void SwitchLookAndFeel::drawToggleButton(juce::Graphics &g, juce::ToggleButton &button, bool, bool)
+RedlineSSAudioProcessorEditor::RedlineSSAudioProcessorEditor(RedlineSSAudioProcessor &processor)
+    : AudioProcessorEditor(&processor), audioProcessor(processor)
 {
-    auto bounds = button.getLocalBounds().toFloat().reduced(4.0f);
-
-    auto textArea = bounds.removeFromBottom(20.0f);
-    auto switchArea = bounds.withSizeKeepingCentre(54.0f, 26.0f);
-
-    const auto isOn = button.getToggleState();
-
-    g.setColour(isOn ? juce::Colours::orange : juce::Colours::darkgrey);
-    g.fillRoundedRectangle(switchArea, 13.0f);
-
-    auto knob = switchArea.reduced(3.0f);
-    knob.setWidth(20.0f);
-
-    if (isOn)
-        knob.setX(switchArea.getRight() - 23.0f);
-
-    g.setColour(juce::Colours::white);
-    g.fillEllipse(knob);
-
-    g.setColour(juce::Colours::white);
-    g.setFont(14.0f);
-    g.drawText(button.getButtonText(), textArea, juce::Justification::centred);
-}
-
-RedlineSSAudioProcessorEditor::RedlineSSAudioProcessorEditor(RedlineSSAudioProcessor &p)
-    : AudioProcessorEditor(&p), processor(p)
-{
-    setSize(1024, 260);
+    setSize(520, 260);
     setResizable(true, true);
-    setResizeLimits(600, 200, 2000, 800);
+    setResizeLimits(420, 220, 1200, 700);
 
-    inputHighPassAttachment =
-        std::make_unique<SliderAttachment>(processor.apvts, "inputHighPassHz", inputHighPassSlider);
+    titleLabel.setText("RedlineSS", juce::dontSendNotification);
+    titleLabel.setJustificationType(juce::Justification::centred);
+    titleLabel.setFont(juce::FontOptions(28.0f, juce::Font::bold));
+    addAndMakeVisible(titleLabel);
 
-    dirtyToggle.setButtonText("Dirty");
-    dirtyToggle.setLookAndFeel(&switchLookAndFeel);
-    addAndMakeVisible(dirtyToggle);
+    configureSlider(inputGainSlider);
+    configureLabel(inputGainLabel, "Input");
 
-    dirtyAttachment = std::make_unique<ButtonAttachment>(processor.apvts, "dirty", dirtyToggle);
+    configureSlider(outputGainSlider);
+    configureLabel(outputGainLabel, "Output");
 
-    gain1Attachment = std::make_unique<SliderAttachment>(processor.apvts, "gain1", gain1Slider);
+    addAndMakeVisible(inputGainSlider);
+    addAndMakeVisible(inputGainLabel);
 
-    bias1Attachment = std::make_unique<SliderAttachment>(processor.apvts, "bias1", bias1Slider);
+    addAndMakeVisible(outputGainSlider);
+    addAndMakeVisible(outputGainLabel);
 
-    interstageHighPassAttachment = std::make_unique<SliderAttachment>(
-        processor.apvts, "interstageHighPassHz", interstageHighPassSlider);
+    inputGainAttachment = std::make_unique<SliderAttachment>(
+        audioProcessor.getApvts(), "inputGainDb", inputGainSlider);
 
-    gain2Attachment = std::make_unique<SliderAttachment>(processor.apvts, "gain2", gain2Slider);
-
-    interstageHighPassAttachment2 = std::make_unique<SliderAttachment>(
-        processor.apvts, "interstageHighPassHz2", interstageHighPassSlider2);
-
-    gain3Attachment = std::make_unique<SliderAttachment>(processor.apvts, "gain3", gain3Slider);
-
-    bassAttachment = std::make_unique<SliderAttachment>(processor.apvts, "bassDb", bassSlider);
-
-    lowerMidAttachment =
-        std::make_unique<SliderAttachment>(processor.apvts, "lowerMidDb", lowerMidSlider);
-
-    upperMidAttachment =
-        std::make_unique<SliderAttachment>(processor.apvts, "upperMidDb", upperMidSlider);
-
-    trebleAttachment =
-        std::make_unique<SliderAttachment>(processor.apvts, "trebleDb", trebleSlider);
-
-    fizzLowPassAttachment =
-        std::make_unique<SliderAttachment>(processor.apvts, "fizzLowPassHz", fizzLowPassSlider);
-
-    masterLevelAttachment =
-        std::make_unique<SliderAttachment>(processor.apvts, "masterLevel", masterLevelSlider);
-
-    resonanceAttachment =
-        std::make_unique<SliderAttachment>(processor.apvts, "resonanceDb", resonanceSlider);
-
-    thresholdAttachment =
-        std::make_unique<SliderAttachment>(processor.apvts, "thresholdDb", thresholdSlider);
-
-    auto setupKnob = [this](juce::Slider &slider, juce::Label &label, const juce::String &text) {
-        slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 24);
-        addAndMakeVisible(slider);
-
-        label.setText(text, juce::dontSendNotification);
-        label.setJustificationType(juce::Justification::centred);
-        label.attachToComponent(&slider, false);
-        addAndMakeVisible(label);
-    };
-
-    setupKnob(inputHighPassSlider, tightLabel, "Tight");
-    setupKnob(gain1Slider, gain1Label, "Gain 1");
-    setupKnob(bias1Slider, bias1Label, "Bias 1");
-    setupKnob(interstageHighPassSlider, cutLabel, "Cut");
-    setupKnob(gain2Slider, gain2Label, "Gain 2");
-    setupKnob(interstageHighPassSlider2, cut2Label, "Cut 2");
-    setupKnob(gain3Slider, gain3Label, "Gain 3");
-    setupKnob(bassSlider, bassLabel, "Bass");
-    setupKnob(lowerMidSlider, lowerMidLabel, "Low Mid");
-    setupKnob(upperMidSlider, upperMidLabel, "Upper Mid");
-    setupKnob(trebleSlider, trebleLabel, "Treble");
-    setupKnob(fizzLowPassSlider, fizzLabel, "Fizz");
-    setupKnob(masterLevelSlider, masterLevelLabel, "Level");
-    setupKnob(resonanceSlider, resonanceLabel, "Resonance");
-    setupKnob(thresholdSlider, thresholdLabel, "Threshold");
+    outputGainAttachment = std::make_unique<SliderAttachment>(
+        audioProcessor.getApvts(), "outputGainDb", outputGainSlider);
 }
 
 void RedlineSSAudioProcessorEditor::paint(juce::Graphics &g)
 {
     g.fillAll(juce::Colour::fromRGB(20, 20, 22));
 
-    g.setColour(juce::Colours::white);
-    g.setFont(22.0f);
+    auto bounds = getLocalBounds().toFloat().reduced(12.0f);
 
-    g.drawFittedText(
-        "Redline SS", getLocalBounds().removeFromTop(50), juce::Justification::centred, 1);
+    g.setColour(juce::Colour::fromRGB(150, 25, 28));
+    g.drawRoundedRectangle(bounds, 12.0f, 2.0f);
 
-    g.setFont(14.0f);
+    g.setColour(juce::Colour::fromRGB(35, 35, 38));
+    g.fillRoundedRectangle(bounds.reduced(4.0f), 10.0f);
 }
 
 void RedlineSSAudioProcessorEditor::resized()
 {
-    auto area = getLocalBounds().reduced(20);
-    area.removeFromTop(50);
+    auto bounds = getLocalBounds().reduced(24);
 
-    const auto knobSize = 90;
-    const auto gap = 10;
+    titleLabel.setBounds(bounds.removeFromTop(48));
 
-    auto x = area.getX();
-    auto y = area.getY();
+    bounds.removeFromTop(16);
 
-    dirtyToggle.setBounds(x, y, knobSize, knobSize);
-    x += knobSize + gap;
+    auto controlsArea = bounds.removeFromTop(150);
+    auto controlWidth = controlsArea.getWidth() / 2;
 
-    for (auto *slider :
-         {&inputHighPassSlider,
-          &gain1Slider,
-          &bias1Slider,
-          &interstageHighPassSlider,
-          &gain2Slider,
-          &interstageHighPassSlider2,
-          &gain3Slider,
-          &bassSlider,
-          &lowerMidSlider,
-          &upperMidSlider,
-          &trebleSlider,
-          &fizzLowPassSlider,
-          &masterLevelSlider,
-          &resonanceSlider,
-          &thresholdSlider}) {
+    auto inputArea = controlsArea.removeFromLeft(controlWidth).reduced(18, 0);
+    auto outputArea = controlsArea.reduced(18, 0);
 
-        if (x + knobSize > area.getRight()) {
-            x = area.getX();
-            y += knobSize + 40;
-        }
-        slider->setBounds(x, y, knobSize, knobSize);
-        x += knobSize + gap;
-    }
+    inputGainSlider.setBounds(inputArea.removeFromTop(110));
+    inputGainLabel.setBounds(inputArea.removeFromTop(28));
+
+    outputGainSlider.setBounds(outputArea.removeFromTop(110));
+    outputGainLabel.setBounds(outputArea.removeFromTop(28));
 }
 
-RedlineSSAudioProcessorEditor::~RedlineSSAudioProcessorEditor()
+void RedlineSSAudioProcessorEditor::configureSlider(juce::Slider &slider)
 {
-    dirtyToggle.setLookAndFeel(nullptr);
+    slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 80, 24);
+
+    slider.setColour(juce::Slider::rotarySliderFillColourId, juce::Colour::fromRGB(190, 35, 38));
+
+    slider.setColour(juce::Slider::rotarySliderOutlineColourId, juce::Colour::fromRGB(65, 65, 70));
+
+    slider.setColour(juce::Slider::thumbColourId, juce::Colour::fromRGB(235, 235, 235));
+
+    slider.setColour(juce::Slider::textBoxTextColourId, juce::Colours::white);
+
+    slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colour::fromRGB(25, 25, 28));
+
+    slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colour::fromRGB(80, 80, 85));
+}
+
+void RedlineSSAudioProcessorEditor::configureLabel(juce::Label &label, const juce::String &text)
+{
+    label.setText(text, juce::dontSendNotification);
+    label.setJustificationType(juce::Justification::centred);
+    label.setColour(juce::Label::textColourId, juce::Colours::white);
+    label.setFont(juce::FontOptions(15.0f, juce::Font::bold));
 }

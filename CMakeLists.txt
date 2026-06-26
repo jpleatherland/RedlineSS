@@ -22,24 +22,38 @@ target_sources(RedlineSS
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
-        Source/AmpPreamp/GainStage1.cpp
-        Source/AmpPreamp/GainStage1.h
         Source/AmpPreamp/AmpPreamp.h
         Source/AmpPreamp/AmpPreamp.cpp
-        Source/AmpPreamp/GainStage2.cpp
-        Source/AmpPreamp/GainStage2.h
-        Source/AmpPreamp/GainStage3.cpp
-        Source/AmpPreamp/GainStage3.h
-        Source/AmpPreamp/ToneStack.h
-        Source/AmpPreamp/ToneStack.cpp
-        Source/AmpPowerAmp/AmpPowerAmp.h
-        Source/AmpPowerAmp/AmpPowerAmp.cpp
-        Source/Utility/NoiseGate.h
-        Source/Utility/NoiseGate.cpp
-        Source/AmpPreamp/VintageLeadPreamp.h
-        Source/AmpPreamp/VintageLeadPreamp.cpp
-        Source/AmpPreamp/ModernLeadPreamp.h
-        Source/AmpPreamp/ModernLeadPreamp.cpp
+        Source/AmpPreamp/InputConditioning.h
+        Source/AmpPreamp/InputConditioning.cpp
+        Source/AmpPreamp/LeadPreGain.h
+        Source/AmpPreamp/LeadPreGain.cpp
+        Source/AmpPreamp/Q5Q6GainStage.h
+        Source/AmpPreamp/Q5Q6GainStage.cpp
+        Source/AmpPreamp/Q7Q8GainStage.h
+        Source/AmpPreamp/Q7Q8GainStage.cpp
+        Source/AmpPreamp/BiasedClamp.h
+        Source/AmpPreamp/BiasedClamp.cpp
+        Source/AmpPreamp/RecoveryStage.h
+        Source/AmpPreamp/RecoveryStage.cpp
+        Source/AmpPreamp/Q11DriverStage.h
+        Source/AmpPreamp/Q11DriverStage.cpp
+        # Source/AmpPreamp/GainStage1.cpp
+        # Source/AmpPreamp/GainStage1.h
+        # Source/AmpPreamp/GainStage2.cpp
+        # Source/AmpPreamp/GainStage2.h
+        # Source/AmpPreamp/GainStage3.cpp
+        # Source/AmpPreamp/GainStage3.h
+        # Source/AmpPreamp/ToneStack.h
+        # Source/AmpPreamp/ToneStack.cpp
+        # Source/AmpPowerAmp/AmpPowerAmp.h
+        # Source/AmpPowerAmp/AmpPowerAmp.cpp
+        # Source/Utility/NoiseGate.h
+        # Source/Utility/NoiseGate.cpp
+        # Source/AmpPreamp/VintageLeadPreamp.h
+        # Source/AmpPreamp/VintageLeadPreamp.cpp
+        # Source/AmpPreamp/ModernLeadPreamp.h
+        # Source/AmpPreamp/ModernLeadPreamp.cpp
 )
 
 target_compile_definitions(RedlineSS

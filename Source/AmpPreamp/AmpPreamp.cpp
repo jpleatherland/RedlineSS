@@ -1,136 +1,177 @@
 #include "AmpPreamp.h"
-
-AmpPreamp::AmpPreamp()
-    : oversampler(2, 2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR)
-{
-}
+#include "BiasedClamp.h"
 
 void AmpPreamp::prepare(double sampleRate, int samplesPerBlock, int numChannels)
 {
-    currentSampleRate = sampleRate;
-
-    oversampler.initProcessing(static_cast<juce::uint32>(samplesPerBlock));
-    oversampler.reset();
-
-    juce::dsp::ProcessSpec spec;
-    spec.sampleRate = sampleRate;
-    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
-    spec.numChannels = static_cast<juce::uint32>(numChannels);
-
-    inputHighPass.prepare(spec);
-    interstageHighPass.prepare(spec);
-    interstageLowPass.prepare(spec);
-    interstageHighPass2.prepare(spec);
-    interstageLowPass2.prepare(spec);
-    fizzLowPass.prepare(spec);
-
-    gainStage1.prepare(sampleRate);
-    gainStage2.prepare(sampleRate);
-    gainStage3.prepare(sampleRate);
-    toneStack.prepare(sampleRate, samplesPerBlock, numChannels);
-    vintageLeadPreamp.prepare(sampleRate, samplesPerBlock, numChannels);
-    modernLeadPreamp.prepare(sampleRate, samplesPerBlock, numChannels);
+    inputConditioning.prepare(sampleRate, samplesPerBlock, numChannels);
+    leadPreGain.prepare(sampleRate, samplesPerBlock, numChannels);
+    q5q6GainStage.prepare(sampleRate, samplesPerBlock, numChannels);
+    q7q8GainStage.prepare(sampleRate, samplesPerBlock, numChannels);
+    biasedClamp.prepare(sampleRate, samplesPerBlock, numChannels);
+    recoveryStage.prepare(sampleRate, samplesPerBlock, numChannels);
+    q11DriverStage.prepare(sampleRate, samplesPerBlock, numChannels);
 }
 
-void AmpPreamp::processBlock(
-    juce::AudioBuffer<float> &buffer,
-    float inputHighPassHz,
-    bool dirty,
-    float gain1,
-    float bias1,
-    float interstageHighPassHz,
-    float interstageHighPassHz2,
-    float gain2,
-    float gain3,
-    float bassDb,
-    float lowerMidDb,
-    float upperMidDb,
-    float trebleDb,
-    float fizzLowPassHz,
-    float masterLevel)
+void AmpPreamp::reset()
 {
-    // Modern lead has its own input coupling, oversampling, nonlinear path,
-    // voicing filters and final low-pass. Do not pre-filter it here, otherwise
-    // the low/lower-mid body is removed before the clamp has anything to bite on.
-    if (dirty) {
-        juce::ignoreUnused(
-            inputHighPassHz,
-            bias1,
-            interstageHighPassHz,
-            interstageHighPassHz2,
-            gain2,
-            gain3,
-            upperMidDb,
-            fizzLowPassHz);
+    inputConditioning.reset();
+    leadPreGain.reset();
+    q5q6GainStage.reset();
+    q7q8GainStage.reset();
+    biasedClamp.reset();
+    recoveryStage.reset();
+    q11DriverStage.reset();
+}
 
-        modernLeadPreamp.processBlock(
-            buffer, gain1 / 10.0f, bassDb, lowerMidDb, trebleDb, masterLevel);
+void AmpPreamp::process(juce::AudioBuffer<float> &buffer)
+{
+    processUpTo(buffer, TapPoint::Output);
+}
+
+void AmpPreamp::processUpTo(juce::AudioBuffer<float> &buffer, TapPoint tapPoint)
+{
+    if (buffer.getNumSamples() == 0)
+        return;
+
+    switch (tapPoint) {
+    case TapPoint::Input:
+        return;
+
+    case TapPoint::AfterInputConditioning:
+        inputConditioning.process(buffer);
+        return;
+
+    case TapPoint::AfterLeadPreGain:
+        inputConditioning.process(buffer);
+        leadPreGain.process(buffer);
+        return;
+
+    case TapPoint::AfterQ5Q6GainStage:
+        inputConditioning.process(buffer);
+        leadPreGain.process(buffer);
+        q5q6GainStage.process(buffer);
+        return;
+
+    case TapPoint::AfterQ7Q8GainStage:
+        inputConditioning.process(buffer);
+        leadPreGain.process(buffer);
+        q5q6GainStage.process(buffer);
+        q7q8GainStage.process(buffer);
+        return;
+
+    case TapPoint::AfterBiasedClamp:
+        inputConditioning.process(buffer);
+        leadPreGain.process(buffer);
+        q5q6GainStage.process(buffer);
+        q7q8GainStage.process(buffer);
+        biasedClamp.process(buffer);
+        return;
+
+    case TapPoint::AfterRecovery:
+        inputConditioning.process(buffer);
+        leadPreGain.process(buffer);
+        q5q6GainStage.process(buffer);
+        q7q8GainStage.process(buffer);
+        biasedClamp.process(buffer);
+        recoveryStage.process(buffer);
+        return;
+
+    case TapPoint::AfterDriver:
+        inputConditioning.process(buffer);
+        leadPreGain.process(buffer);
+        q5q6GainStage.process(buffer);
+        q7q8GainStage.process(buffer);
+        biasedClamp.process(buffer);
+        recoveryStage.process(buffer);
+        q11DriverStage.process(buffer);
+        return;
+
+    case TapPoint::Output:
+        inputConditioning.process(buffer);
+        leadPreGain.process(buffer);
+        q5q6GainStage.process(buffer);
+        q7q8GainStage.process(buffer);
+        biasedClamp.process(buffer);
+        recoveryStage.process(buffer);
+
+        // Later stages will go here:
+        //
+        // driver.process(buffer);
+        // toneStack.process(buffer);
+        // postGain.process(buffer);
+
         return;
     }
 
-    *inputHighPass.state =
-        *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, inputHighPassHz);
+    jassertfalse;
+}
 
-    *interstageHighPass.state =
-        *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, interstageHighPassHz);
+InputConditioning &AmpPreamp::getInputConditioning()
+{
+    return inputConditioning;
+}
 
-    *interstageHighPass2.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(
-        currentSampleRate, interstageHighPassHz2);
+const InputConditioning &AmpPreamp::getInputConditioning() const
+{
+    return inputConditioning;
+}
 
-    *fizzLowPass.state =
-        *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, fizzLowPassHz);
+LeadPreGain &AmpPreamp::getLeadPreGain()
+{
+    return leadPreGain;
+}
 
-    *interstageLowPass.state =
-        *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, 7000.0f);
+const LeadPreGain &AmpPreamp::getLeadPreGain() const
+{
+    return leadPreGain;
+}
 
-    *interstageLowPass2.state =
-        *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, 6500.0f);
+Q5Q6GainStage &AmpPreamp::getQ5Q6GainStage()
+{
+    return q5q6GainStage;
+}
 
-    juce::dsp::AudioBlock<float> block(buffer);
-    juce::dsp::ProcessContextReplacing<float> context(block);
+const Q5Q6GainStage &AmpPreamp::getQ5Q6GainStage() const
+{
+    return q5q6GainStage;
+}
 
-    // Legacy/non-modern path. Left intact, apart from moving the Modern return above it.
-    inputHighPass.process(context);
+Q7Q8GainStage &AmpPreamp::getQ7Q8GainStage()
+{
+    return q7q8GainStage;
+}
 
-    auto oversampledBlock = oversampler.processSamplesUp(block);
-    juce::dsp::ProcessContextReplacing<float> oversampledContext(oversampledBlock);
+const Q7Q8GainStage &AmpPreamp::getQ7Q8GainStage() const
+{
+    return q7q8GainStage;
+}
 
-    // If you want the Vintage lead macro-model here instead of the old generic chain,
-    // replace this legacy block with vintageLeadPreamp.processBlock(...).
+BiasedClamp &AmpPreamp::getBiasedClamp()
+{
+    return biasedClamp;
+}
 
-    for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
-        auto *data = oversampledBlock.getChannelPointer(channel);
+const BiasedClamp &AmpPreamp::getBiasedClamp() const
+{
+    return biasedClamp;
+}
 
-        for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
-            data[i] = gainStage1.processSample(data[i], gain1, bias1);
-    }
+RecoveryStage &AmpPreamp::getRecoveryStage()
+{
+    return recoveryStage;
+}
 
-    interstageHighPass.process(oversampledContext);
-    interstageLowPass.process(oversampledContext);
+const RecoveryStage &AmpPreamp::getRecoveryStage() const
+{
+    return recoveryStage;
+}
 
-    for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
-        auto *data = oversampledBlock.getChannelPointer(channel);
+Q11DriverStage &AmpPreamp::getQ11DriverStage()
+{
+    return q11DriverStage;
+}
 
-        for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
-            data[i] = gainStage2.processSample(data[i], gain2);
-    }
-
-    interstageHighPass2.process(oversampledContext);
-    interstageLowPass2.process(oversampledContext);
-
-    for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
-        auto *data = oversampledBlock.getChannelPointer(channel);
-
-        for (size_t i = 0; i < oversampledBlock.getNumSamples(); ++i)
-            data[i] = gainStage3.processSample(data[i], gain3);
-    }
-
-    oversampler.processSamplesDown(block);
-
-    // Tone stack is still disabled here, matching your current implementation.
-    // toneStack.processBlock(buffer, bassDb, lowerMidDb, upperMidDb, trebleDb);
-
-    fizzLowPass.process(context);
-
-    buffer.applyGain(masterLevel);
+const Q11DriverStage &AmpPreamp::getQ11DriverStage() const
+{
+    return q11DriverStage;
 }
